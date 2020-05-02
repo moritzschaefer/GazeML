@@ -7,13 +7,13 @@ import time
 
 import cv2 as cv
 import numpy as np
+import pandas as pd
 
 import coloredlogs
 import tensorflow as tf
 from datasources import Video, Webcam
 from models import ELG
-from util.video_output import (start_record_video_thread,
-                               start_visualize_output_thread)
+from util.video_output import RecordVideoThread, start_visualize_output_thread
 
 if __name__ == '__main__':
 
@@ -23,6 +23,7 @@ if __name__ == '__main__':
                         choices=['debug', 'info', 'warning', 'error', 'critical'])
     parser.add_argument('--from_video', type=str, help='Use this video path instead of webcam')
     parser.add_argument('--record_video', type=str, help='Output path of video of demonstration.')
+    parser.add_argument('--record_eye_data', type=str, help='Output path of predicted eye gaze.')
     parser.add_argument('--fullscreen', action='store_true')
     parser.add_argument('--headless', action='store_true')
 
@@ -93,16 +94,21 @@ if __name__ == '__main__':
                     },
                 ],
             )
+        if args.record_eye_data:
+            eye_data = []
+        else:
+            eye_data = None
 
         # Record output frames to file if requested
-        video_out_queue = queue.Queue()
+        record_thread = RecordVideoThread(args=(args.record_video, data_source))
         if args.record_video:
-            start_record_video_thread(args, data_source, video_out_queue)
+            record_thread.daemon = True
+            record_thread.start()
 
         # Begin visualization thread
         inferred_stuff_queue = queue.Queue()
 
-        visualize_thread = start_visualize_output_thread(args, inferred_stuff_queue, data_source, video_out_queue, batch_size)
+        visualize_thread = start_visualize_output_thread(args, inferred_stuff_queue, data_source, record_thread.video_out_queue, batch_size, eye_data)
 
         # Do inference forever
         infer = model.inference_generator()
@@ -124,9 +130,8 @@ if __name__ == '__main__':
             if not data_source._open:
                 break
 
-        # Close video recording
-        if args.record_video and video_out is not None:
-            video_out_should_stop = True
-            video_out_queue.put_nowait(None)
-            with video_out_done:
-                video_out_done.wait()
+        if args.record_video:
+            record_thread.close_recording()
+
+        if args.record_eye_data:
+            pd.DataFrame(eye_data).to_csv(args.record_eye_data)

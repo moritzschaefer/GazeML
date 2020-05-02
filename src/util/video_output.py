@@ -5,11 +5,12 @@ import time
 
 import cv2 as cv
 import numpy as np
+import pandas as pd
 
 import util.gaze
 
 
-def start_visualize_output_thread(args, inferred_stuff_queue, data_source, video_out_queue, batch_size):
+def start_visualize_output_thread(args, inferred_stuff_queue, data_source, video_out_queue, batch_size, eye_data):
 
     def _visualize_output():
         last_frame_index = 0
@@ -212,6 +213,14 @@ def start_visualize_output_thread(args, inferred_stuff_queue, data_source, video
                     cv.putText(bgr, fps_str, org=(fw - 111, fh - 21),
                                 fontFace=cv.FONT_HERSHEY_DUPLEX, fontScale=0.79,
                                 color=(255, 255, 255), thickness=1, lineType=cv.LINE_AA)
+                    
+                    dots = [(100, 100), (50, 200), (200, 200), (200, 50), (300, 100), (20, 200), (20, 20), (400, 200), (200, 400), (600, 400)]
+                    try:
+                        dot = dots[frame_index // 100]
+                        cv.circle(bgr, dot, 20, (255, 0, 0), thickness=7)
+                    except IndexError:
+                        pass
+
                     if not args.headless:
                         cv.imshow('vis', bgr)
                     last_frame_index = frame_index
@@ -219,6 +228,12 @@ def start_visualize_output_thread(args, inferred_stuff_queue, data_source, video
                     # Record frame?
                     if args.record_video:
                         video_out_queue.put_nowait(frame_index)
+                    if args.record_eye_data and len(frame['eyes']) >= 2 and len(all_gaze_histories) >= 2 and np.all([len(gh) > 0 for gh in all_gaze_histories[:2]]):
+                        if frame['eyes'][0]['side'] == 'left':
+                            left, right = all_gaze_histories[0][-1], all_gaze_histories[1][-1]
+                        else:
+                            right, left = all_gaze_histories[0][-1], all_gaze_histories[1][-1]
+                        eye_data.append(pd.Series(index=['left_theta', 'left_phi', 'right_theta', 'right_phi'], data=[*left, *right], name=frame_index))
 
                     # Quit?
                     if cv.waitKey(1) & 0xFF == ord('q'):
@@ -245,40 +260,44 @@ def start_visualize_output_thread(args, inferred_stuff_queue, data_source, video
     return visualize_thread
 
 
-def start_record_video_thread(args, data_source, video_out_queue):
+class RecordVideoThread(threading.Thread):
+    def __init__(self, group=None, target=None, name=None, args=(), kwargs={}, daemon=None):
+        super(RecordVideoThread, self).__init__(group, target=self._record_frame, name=name, args=args, kwargs=kwargs, daemon=daemon)
+        self.video_out_done = threading.Condition()
+        self.video_out = None
+        self.video_out_should_stop = False
+        self.video_out_queue = queue.Queue()
 
-    def _record_frame():
-        global video_out
+    def _record_frame(self, output_path, data_source):
         last_frame_time = None
         out_fps = 30
         out_frame_interval = 1.0 / out_fps
-        while not video_out_should_stop:
-            frame_index = video_out_queue.get()
+        while not self.video_out_should_stop:
+            frame_index = self.video_out_queue.get()
             if frame_index is None:
                 break
             assert frame_index in data_source._frames
             frame = data_source._frames[frame_index]['bgr']
             h, w, _ = frame.shape
-            if video_out is None:
-                video_out = cv.VideoWriter(
-                    args.record_video, cv.VideoWriter_fourcc(*'H264'),
+            if self.video_out is None:
+                self.video_out = cv.VideoWriter(
+                    output_path, cv.VideoWriter_fourcc(*'mp4v'),
                     out_fps, (w, h),
                 )
             now_time = time.time()
             if last_frame_time is not None:
                 time_diff = now_time - last_frame_time
                 while time_diff > 0.0:
-                    video_out.write(frame)
+                    self.video_out.write(frame)
                     time_diff -= out_frame_interval
             last_frame_time = now_time
-        video_out.release()
-        with video_out_done:
-            video_out_done.notify_all()
+        self.video_out.release()
+        with self.video_out_done:
+            self.video_out_done.notify_all()
 
-    video_out = None
-    video_out_should_stop = False
-    video_out_done = threading.Condition()
-
-    record_thread = threading.Thread(target=_record_frame, name='record')
-    record_thread.daemon = True
-    record_thread.start()
+    def close_recording(self):
+        if self.video_out is not None:
+            self.video_out_should_stop = True
+            self.video_out_queue.put_nowait(None)
+            with self.video_out_done:
+                self.video_out_done.wait()
