@@ -1,6 +1,7 @@
 """Setup module for GazeML."""
 
 from setuptools import setup, find_packages
+# from pipenv import find_install_requires
 
 setup(
         name='gazeml',
@@ -12,17 +13,5 @@ setup(
 
         packages=find_packages(exclude=[]),
         python_requires='>=3.5',
-        install_requires=[
-            'coloredlogs',
-            'h5py',
-            'numpy',
-            'opencv-python',
-            'pandas',
-            'ujson',
-            'dlib',
-
-            # Install the most appropriate version of Tensorflow
-            # Ref. https://www.tensorflow.org/install/
-            # 'tensorflow',
-        ],
+        install_requires=[],
 )

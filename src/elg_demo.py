@@ -5,14 +5,14 @@ import os
 import queue
 import time
 
-import cv2 as cv
 import numpy as np
 import pandas as pd
 
 import coloredlogs
+import cv2 as cv
 import tensorflow as tf
 from datasources import Video, Webcam
-from models import ELG
+from models import DPG, ELG
 from util.video_output import RecordVideoThread, start_visualize_output_thread
 
 if __name__ == '__main__':
@@ -30,6 +30,7 @@ if __name__ == '__main__':
     parser.add_argument('--fps', type=int, default=60, help='Desired sampling rate of webcam')
     parser.add_argument('--camera_id', type=int, default=0, help='ID of webcam to use')
 
+    parser.add_argument('--use_dpg', action='store_true')
     args = parser.parse_args()
     coloredlogs.install(
         datefmt='%d/%m %H:%M',
@@ -63,31 +64,31 @@ if __name__ == '__main__':
                                 tensorflow_session=session, batch_size=batch_size,
                                 data_format='NCHW' if gpu_available else 'NHWC',
                                 eye_image_shape=(108, 180))
+            first_layer_stride = 3
+            num_modules = 3
+            num_feature_maps = 64
         else:
             data_source = Webcam(tensorflow_session=session, batch_size=batch_size,
                                  camera_id=args.camera_id, fps=args.fps,
                                  data_format='NCHW' if gpu_available else 'NHWC',
                                  eye_image_shape=(36, 60))
+            first_layer_stride = 1
+            num_modules = 2
+            num_feature_maps = 32
 
-        # Define model
-        if args.from_video:
-            model = ELG(
-                session, train_data={'videostream': data_source},
-                first_layer_stride=3,
-                num_modules=3,
-                num_feature_maps=64,
+        if args.use_dpg:
+            model = DPG(session, train_data={'videostream': data_source}, 
                 learning_schedule=[
                     {
                         'loss_terms_to_optimize': {'dummy': ['hourglass', 'radius']},
                     },
-                ],
-            )
+                ])
         else:
             model = ELG(
                 session, train_data={'videostream': data_source},
-                first_layer_stride=1,
-                num_modules=2,
-                num_feature_maps=32,
+                first_layer_stride=first_layer_stride,
+                num_modules=num_modules,
+                num_feature_maps=num_feature_maps,
                 learning_schedule=[
                     {
                         'loss_terms_to_optimize': {'dummy': ['hourglass', 'radius']},

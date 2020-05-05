@@ -1,3 +1,11 @@
+# Nix
+
+Run nix-build and then `./result/bin/python-env`. This will bring you into the pipenv environment.
+
+# Non-nix
+
+Use pipenv along with the Pipfile. Ignore setup.py
+
 # GazeML
 A deep learning framework based on Tensorflow for the training of high performance gaze estimation.
 
