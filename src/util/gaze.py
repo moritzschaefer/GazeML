@@ -39,6 +39,7 @@ def vector_to_pitchyaw(vectors):
     out[:, 1] = np.arctan2(vectors[:, 0], vectors[:, 2])  # phi
     return out
 
+
 radians_to_degrees = 180.0 / np.pi
 
 

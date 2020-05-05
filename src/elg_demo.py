@@ -13,7 +13,8 @@ import coloredlogs
 import tensorflow as tf
 from datasources import Video, Webcam
 from models import ELG
-from util.video_output import RecordVideoThread, start_visualize_output_thread
+from util.video_output import RecordVideoThread, visualize_forever
+from util.inference import InferenceThread
 
 if __name__ == '__main__':
 
@@ -105,30 +106,24 @@ if __name__ == '__main__':
             record_thread.daemon = True
             record_thread.start()
 
-        # Begin visualization thread
+        # Start inference
         inferred_stuff_queue = queue.Queue()
+        inference_thread = InferenceThread(
+            args=(session, model, data_source, inferred_stuff_queue)
+        )
+        inference_thread.start()
 
-        visualize_thread = start_visualize_output_thread(args, inferred_stuff_queue, data_source, record_thread.video_out_queue, batch_size, eye_data)
+        visualize_forever(
+            args,
+            inferred_stuff_queue,
+            data_source,
+            record_thread.video_out_queue,
+            batch_size,
+            eye_data
+        )
 
-        # Do inference forever
-        infer = model.inference_generator()
-        while True:
-            output = next(infer)
-            for frame_index in np.unique(output['frame_index']):
-                if frame_index not in data_source._frames:
-                    continue
-                frame = data_source._frames[frame_index]
-                if 'inference' in frame['time']:
-                    frame['time']['inference'] += output['inference_time']
-                else:
-                    frame['time']['inference'] = output['inference_time']
-            inferred_stuff_queue.put_nowait(output)
-
-            if not visualize_thread.isAlive():
-                break
-
-            if not data_source._open:
-                break
+        inference_thread.stop()
+        inference_thread.join()
 
         if args.record_video:
             record_thread.close_recording()
