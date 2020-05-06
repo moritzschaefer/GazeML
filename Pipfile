@@ -6,7 +6,16 @@ verify_ssl = true
 [dev-packages]
 
 [packages]
-ipdb
-tensorflow=1.15
+ipdb = "*"
+coloredlogs = "*"
+h5py = "*"
+numpy = "*"
+opencv-python = "*"
+pandas = "*"
+ujson = "*"
+dlib = "*"
+tensorflow-gpu = "~=1.15"
+scipy = "*"
+
 [requires]
 python_version = "3.7"
