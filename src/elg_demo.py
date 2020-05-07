@@ -12,9 +12,9 @@ import coloredlogs
 import cv2 as cv
 import tensorflow as tf
 from datasources import Video, Webcam
-from models import ELG, DLG
-from util.video_output import RecordVideoThread, visualize_forever
+from models import DPG, ELG
 from util.inference import InferenceThread
+from util.video_output import RecordVideoThread, visualize_forever
 
 if __name__ == '__main__':
 

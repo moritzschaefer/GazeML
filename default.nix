@@ -10,8 +10,8 @@ let
 in
 buildFHSUserEnv {
   name = "python-env";
-  targetPkgs = pkgs: with pkgs; [
-    python3
+  targetPkgs = pkgs: with pkgs;  [
+    python3  # this is 3.7
     pipenv
     which
     gcc
@@ -27,8 +27,16 @@ buildFHSUserEnv {
     m4
     gperf
     unzip
-    cudaPackages.cudatoolkit_10_0
-  	cudnn.generic
+    # cudaPackages.cudatoolkit_10_0
+  	# cudnn_cudatoolkit_10_0
+    python37Packages.tensorflowWithCuda
+    python37Packages.dlib
+    python37Packages.opencv3
+    python37Packages.pandas
+    python37Packages.scipy
+    python37Packages.h5py
+    python37Packages.coloredlogs
+    python37Packages.ipdb
     linuxPackages.nvidia_x11
     libGLU
     libGL
