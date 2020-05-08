@@ -1,4 +1,5 @@
 import threading
+
 import numpy as np
 
 
@@ -23,7 +24,7 @@ class InferenceThread(threading.Thread):
                         frame['time']['inference'] = output['inference_time']
                 inferred_stuff_queue.put_nowait(output)
 
-                if self._stop.is_set():
+                if self._stop_event.is_set():
                     break
 
     def stop(self):
