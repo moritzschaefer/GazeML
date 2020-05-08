@@ -14,7 +14,8 @@ import tensorflow as tf
 from datasources import Video, Webcam
 from models import DPG, ELG
 from util.inference import InferenceThread
-from util.video_output import RecordVideoThread, visualize_forever
+from util.video_output import RecordVideoThread
+from util.visualization import visualize_forever
 
 if __name__ == '__main__':
 
