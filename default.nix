@@ -31,7 +31,7 @@ buildFHSUserEnv {
   	# cudnn_cudatoolkit_10_0
     python37Packages.tensorflowWithCuda
     python37Packages.dlib
-    python37Packages.opencv3
+    # python37Packages.opencv3
     python37Packages.pandas
     python37Packages.scipy
     python37Packages.h5py
